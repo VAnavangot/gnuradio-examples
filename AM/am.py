@@ -9,9 +9,9 @@
 # Author: Iván Rodríguez
 # Copyright: 2021
 # Description: AM
-# GNU Radio version: 3.8.1.0
+# GNU Radio version: 3.10.3.0
 
-from distutils.version import StrictVersion
+from packaging.version import Version as StrictVersion
 
 if __name__ == '__main__':
     import ctypes
@@ -32,6 +32,7 @@ from gnuradio import audio
 from gnuradio import blocks
 from gnuradio import filter
 from gnuradio import gr
+from gnuradio.fft import window
 import sys
 import signal
 from argparse import ArgumentParser
@@ -39,12 +40,15 @@ from gnuradio.eng_arg import eng_float, intx
 from gnuradio import eng_notation
 from gnuradio.qtgui import Range, RangeWidget
 from PyQt5 import QtCore
+
+
+
 from gnuradio import qtgui
 
 class am(gr.top_block, Qt.QWidget):
 
     def __init__(self):
-        gr.top_block.__init__(self, "AM")
+        gr.top_block.__init__(self, "AM", catch_exceptions=True)
         Qt.QWidget.__init__(self)
         self.setWindowTitle("AM")
         qtgui.util.check_set_qss()
@@ -85,16 +89,17 @@ class am(gr.top_block, Qt.QWidget):
         # Blocks
         ##################################################
         self._signal_offset_range = Range(0, 2, 0.1, 1, 200)
-        self._signal_offset_win = RangeWidget(self._signal_offset_range, self.set_signal_offset, 'Signal Offset', "counter_slider", float)
-        self.top_grid_layout.addWidget(self._signal_offset_win)
+        self._signal_offset_win = RangeWidget(self._signal_offset_range, self.set_signal_offset, "Signal Offset", "counter_slider", float, QtCore.Qt.Horizontal)
+        self.top_layout.addWidget(self._signal_offset_win)
         self._in_gain_range = Range(0, 2, 0.1, 0.5, 200)
-        self._in_gain_win = RangeWidget(self._in_gain_range, self.set_in_gain, 'Input gain', "counter_slider", float)
-        self.top_grid_layout.addWidget(self._in_gain_win)
+        self._in_gain_win = RangeWidget(self._in_gain_range, self.set_in_gain, "Input gain", "counter_slider", float, QtCore.Qt.Horizontal)
+        self.top_layout.addWidget(self._in_gain_win)
         self.qtgui_time_sink_x_0_1 = qtgui.time_sink_f(
             2048, #size
             samp_rate, #samp_rate
             'Wave Form', #name
-            2 #number of inputs
+            2, #number of inputs
+            None # parent
         )
         self.qtgui_time_sink_x_0_1.set_update_time(0.10)
         self.qtgui_time_sink_x_0_1.set_y_axis(-0.5, 0.5)
@@ -135,13 +140,14 @@ class am(gr.top_block, Qt.QWidget):
             self.qtgui_time_sink_x_0_1.set_line_marker(i, markers[i])
             self.qtgui_time_sink_x_0_1.set_line_alpha(i, alphas[i])
 
-        self._qtgui_time_sink_x_0_1_win = sip.wrapinstance(self.qtgui_time_sink_x_0_1.pyqwidget(), Qt.QWidget)
-        self.top_grid_layout.addWidget(self._qtgui_time_sink_x_0_1_win)
+        self._qtgui_time_sink_x_0_1_win = sip.wrapinstance(self.qtgui_time_sink_x_0_1.qwidget(), Qt.QWidget)
+        self.top_layout.addWidget(self._qtgui_time_sink_x_0_1_win)
         self.qtgui_time_sink_x_0 = qtgui.time_sink_f(
             2048, #size
             samp_rate, #samp_rate
             'Modulated', #name
-            1 #number of inputs
+            1, #number of inputs
+            None # parent
         )
         self.qtgui_time_sink_x_0.set_update_time(0.10)
         self.qtgui_time_sink_x_0.set_y_axis(-4, 4)
@@ -182,8 +188,8 @@ class am(gr.top_block, Qt.QWidget):
             self.qtgui_time_sink_x_0.set_line_marker(i, markers[i])
             self.qtgui_time_sink_x_0.set_line_alpha(i, alphas[i])
 
-        self._qtgui_time_sink_x_0_win = sip.wrapinstance(self.qtgui_time_sink_x_0.pyqwidget(), Qt.QWidget)
-        self.top_grid_layout.addWidget(self._qtgui_time_sink_x_0_win)
+        self._qtgui_time_sink_x_0_win = sip.wrapinstance(self.qtgui_time_sink_x_0.qwidget(), Qt.QWidget)
+        self.top_layout.addWidget(self._qtgui_time_sink_x_0_win)
         self.low_pass_filter_0 = filter.fir_filter_fff(
             1,
             firdes.low_pass(
@@ -191,9 +197,9 @@ class am(gr.top_block, Qt.QWidget):
                 samp_rate,
                 22000,
                 100,
-                firdes.WIN_HAMMING,
+                window.WIN_HAMMING,
                 6.76))
-        self.blocks_wavfile_source_0 = blocks.wavfile_source('/home/irodrigu/Proyectos/sc-clases/2020-2021/P1/src/songs/Lofi.wav', True)
+        self.blocks_wavfile_source_0 = blocks.wavfile_source('C:\\Users\\Vijay\\Downloads\\(FREE) Lo-fi Type Beat - Rain.wav', True)
         self.blocks_throttle_0 = blocks.throttle(gr.sizeof_float*1, samp_rate,True)
         self.blocks_sub_xx_0 = blocks.sub_ff(1)
         self.blocks_null_source_0 = blocks.null_source(gr.sizeof_float*1)
@@ -210,15 +216,14 @@ class am(gr.top_block, Qt.QWidget):
                 85000,
                 115000,
                 100,
-                firdes.WIN_HAMMING,
+                window.WIN_HAMMING,
                 6.76))
         self.audio_sink_0 = audio.sink(48000, 'pulse', True)
         self.analog_sig_source_x_0_0 = analog.sig_source_f(samp_rate, analog.GR_COS_WAVE, 100000, 3, 0, 0)
         self.analog_const_source_x_0_0 = analog.sig_source_f(0, analog.GR_CONST_WAVE, 0, 0, signal_offset)
         self.analog_const_source_x_0 = analog.sig_source_f(0, analog.GR_CONST_WAVE, 0, 0, signal_offset)
-        self.analog_agc_xx_0 = analog.agc_ff(6e-8, 0, 1.0)
+        self.analog_agc_xx_0 = analog.agc_ff((6e-8), 0, 1.0)
         self.analog_agc_xx_0.set_max_gain(65536)
-
 
 
         ##################################################
@@ -243,9 +248,13 @@ class am(gr.top_block, Qt.QWidget):
         self.connect((self.blocks_wavfile_source_0, 0), (self.blocks_multiply_const_vxx_0_0_0, 0))
         self.connect((self.low_pass_filter_0, 0), (self.blocks_sub_xx_0, 0))
 
+
     def closeEvent(self, event):
         self.settings = Qt.QSettings("GNU Radio", "am")
         self.settings.setValue("geometry", self.saveGeometry())
+        self.stop()
+        self.wait()
+
         event.accept()
 
     def get_signal_offset(self):
@@ -262,9 +271,9 @@ class am(gr.top_block, Qt.QWidget):
     def set_samp_rate(self, samp_rate):
         self.samp_rate = samp_rate
         self.analog_sig_source_x_0_0.set_sampling_freq(self.samp_rate)
-        self.band_pass_filter_0.set_taps(firdes.band_pass(1, self.samp_rate, 85000, 115000, 100, firdes.WIN_HAMMING, 6.76))
+        self.band_pass_filter_0.set_taps(firdes.band_pass(1, self.samp_rate, 85000, 115000, 100, window.WIN_HAMMING, 6.76))
         self.blocks_throttle_0.set_sample_rate(self.samp_rate)
-        self.low_pass_filter_0.set_taps(firdes.low_pass(1, self.samp_rate, 22000, 100, firdes.WIN_HAMMING, 6.76))
+        self.low_pass_filter_0.set_taps(firdes.low_pass(1, self.samp_rate, 22000, 100, window.WIN_HAMMING, 6.76))
         self.qtgui_time_sink_x_0.set_samp_rate(self.samp_rate)
         self.qtgui_time_sink_x_0_1.set_samp_rate(self.samp_rate)
 
@@ -277,6 +286,7 @@ class am(gr.top_block, Qt.QWidget):
 
 
 
+
 def main(top_block_cls=am, options=None):
 
     if StrictVersion("4.5.0") <= StrictVersion(Qt.qVersion()) < StrictVersion("5.0.0"):
@@ -285,10 +295,15 @@ def main(top_block_cls=am, options=None):
     qapp = Qt.QApplication(sys.argv)
 
     tb = top_block_cls()
+
     tb.start()
+
     tb.show()
 
     def sig_handler(sig=None, frame=None):
+        tb.stop()
+        tb.wait()
+
         Qt.QApplication.quit()
 
     signal.signal(signal.SIGINT, sig_handler)
@@ -298,12 +313,7 @@ def main(top_block_cls=am, options=None):
     timer.start(500)
     timer.timeout.connect(lambda: None)
 
-    def quitting():
-        tb.stop()
-        tb.wait()
-    qapp.aboutToQuit.connect(quitting)
     qapp.exec_()
-
 
 if __name__ == '__main__':
     main()
